@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 #include "fuzzgoat.h"
@@ -105,55 +106,26 @@ static void process_value(json_value* value, int depth)
         }
 }
 
+#define BUF_SIZE 1024
 int main(int argc, char** argv)
 {
-        char* filename;
-        FILE *fp;
-        struct stat filestatus;
-        int file_size;
         char* file_contents;
         json_char* json;
         json_value* value;
 
-        if (argc != 2) {
-                fprintf(stderr, "%s <file_json>\n", argv[0]);
-                return 1;
-        }
-        filename = argv[1];
-
-        if ( stat(filename, &filestatus) != 0) {
-                fprintf(stderr, "File %s not found\n", filename);
-                return 1;
-        }
-        file_size = filestatus.st_size;
-        file_contents = (char*)malloc(filestatus.st_size);
+        file_contents = (char*)malloc(BUF_SIZE);
         if ( file_contents == NULL) {
-                fprintf(stderr, "Memory error: unable to allocate %d bytes\n", file_size);
+                fprintf(stderr, "Memory error: unable to allocate 1024 bytes\n");
                 return 1;
         }
 
-        fp = fopen(filename, "rt");
-        if (fp == NULL) {
-                fprintf(stderr, "Unable to open %s\n", filename);
-                fclose(fp);
-                free(file_contents);
+        if (read(STDIN_FILENO, file_contents, BUF_SIZE) != BUF_SIZE) {
                 return 1;
         }
-        if ( fread(file_contents, file_size, 1, fp) != 1 ) {
-                fprintf(stderr, "Unable t read content of %s\n", filename);
-                fclose(fp);
-                free(file_contents);
-                return 1;
-        }
-        fclose(fp);
-
-        printf("%s\n", file_contents);
-
-        printf("--------------------------------\n\n");
 
         json = (json_char*)file_contents;
 
-        value = json_parse(json,file_size);
+        value = json_parse(json, BUF_SIZE);
 
         if (value == NULL) {
                 fprintf(stderr, "Unable to parse data\n");
